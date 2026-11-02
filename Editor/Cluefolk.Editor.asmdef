@@ -1,0 +1,1 @@
+{"name":"Cluefolk.Editor","rootNamespace":"CluefolkSDK.Editor","references":["Cluefolk"],"includePlatforms":["Editor"],"allowUnsafeCode":false,"autoReferenced":false}

@@ -1,0 +1,4 @@
+framework module Cluefolk {
+  header "Cluefolk-Swift.h"
+  requires objc
+}

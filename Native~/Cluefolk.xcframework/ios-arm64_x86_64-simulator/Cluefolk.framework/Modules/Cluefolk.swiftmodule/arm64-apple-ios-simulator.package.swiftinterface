@@ -1,0 +1,149 @@
+// swift-interface-format-version: 1.0
+// swift-compiler-version: Apple Swift version 6.4.2 effective-5.10 (swiftlang-6.4.2.1.9 clang-2100.4.1.1)
+// swift-module-flags: -target arm64-apple-ios15.0-simulator -enable-objc-interop -enable-library-evolution -language-mode 5 -O -enable-experimental-feature DebugDescriptionMacro -module-name Cluefolk -package-name ios_sdk
+// swift-module-flags-ignorable:  -formal-cxx-interoperability-mode=off -interface-compiler-version 6.4.2
+import CryptoKit
+import Darwin
+import Foundation
+import Security
+import Swift
+import UIKit
+import WebKit
+import _Concurrency
+import _StringProcessing
+import _SwiftConcurrencyShims
+@objc(CLFAppearanceMode) public enum AppearanceMode : Swift::Int {
+  case system, light, dark
+  public init?(rawValue: Swift::Int)
+  public typealias RawValue = Swift::Int
+  public var rawValue: Swift::Int {
+    get
+  }
+}
+@objc(CLFAppearanceRotation) public enum AppearanceRotation : Swift::Int {
+  case game, free
+  public init?(rawValue: Swift::Int)
+  public typealias RawValue = Swift::Int
+  public var rawValue: Swift::Int {
+    get
+  }
+}
+@objc(CLFAppearanceError) public enum AppearanceError : Swift::Int, Swift::Error {
+  case invalidJSON = 1
+  case invalidTitle
+  case invalidColors
+  case invalidBlock
+  case invalidTopic
+  case tooLarge
+  public init?(rawValue: Swift::Int)
+  public typealias RawValue = Swift::Int
+  public static var _nsErrorDomain: Swift::String {
+    get
+  }
+  public var rawValue: Swift::Int {
+    get
+  }
+}
+extension Cluefolk::AppearanceError : Foundation::LocalizedError {
+  public var errorDescription: Swift::String? {
+    get
+  }
+}
+@objc(CLFAppearanceTopic) final public class AppearanceTopic : ObjectiveC::NSObject {
+  @objc final public let label: Swift::String
+  @objc final public let category: Swift::String
+  @objc final public let icon: Swift::String
+  @objc public init(label: Swift::String, category: Swift::String, icon: Swift::String = "")
+  @objc deinit
+}
+@_hasMissingDesignatedInitializers @objc(CLFAppearance) final public class Appearance : ObjectiveC::NSObject {
+  @objc deinit
+}
+@_inheritsConvenienceInitializers @objc(CLFAppearanceBuilder) final public class AppearanceBuilder : ObjectiveC::NSObject {
+  @objc override dynamic public init()
+  @objc(initWithJSON:error:) public init(json: Swift::String) throws
+  @discardableResult
+  @objc final public func title(_ title: Swift::String) -> Cluefolk::AppearanceBuilder
+  @discardableResult
+  @objc final public func mode(_ mode: Cluefolk::AppearanceMode) -> Cluefolk::AppearanceBuilder
+  @discardableResult
+  @objc final public func rotation(_ rotation: Cluefolk::AppearanceRotation) -> Cluefolk::AppearanceBuilder
+  @discardableResult
+  @objc final public func lightColors(accent: Swift::String, action: Swift::String, background: Swift::String, surface: Swift::String, text: Swift::String) -> Cluefolk::AppearanceBuilder
+  @discardableResult
+  @objc final public func darkColors(accent: Swift::String, action: Swift::String, background: Swift::String, surface: Swift::String, text: Swift::String) -> Cluefolk::AppearanceBuilder
+  @discardableResult
+  @objc final public func welcome(title: Swift::String, text: Swift::String) -> Cluefolk::AppearanceBuilder
+  @discardableResult
+  @objc final public func topics(title: Swift::String, items: [Cluefolk::AppearanceTopic]) -> Cluefolk::AppearanceBuilder
+  @discardableResult
+  @objc final public func contact(title: Swift::String, text: Swift::String) -> Cluefolk::AppearanceBuilder
+  @objc(build:) final public func build() throws -> Cluefolk::Appearance
+  @discardableResult
+  @objc(applyOverridesJSON:error:) final public func applyOverrides(_ json: Swift::String) throws -> Cluefolk::AppearanceBuilder
+  @objc deinit
+}
+@objc(CLFOptions) final public class CluefolkOptions : ObjectiveC::NSObject {
+  @objc public static let defaultAPIURL: Foundation::URL
+  @objc final public let projectId: Swift::String
+  @objc final public let apiURL: Foundation::URL
+  @objc final public let logoImageName: Swift::String?
+  @objc convenience public init(projectId: Swift::String)
+  @objc public init(projectId: Swift::String, apiURL: Foundation::URL, logoImageName: Swift::String?)
+  @objc deinit
+}
+@_Concurrency::MainActor @objc(CLFEventListener) public protocol CluefolkEventListener {
+  @objc @_Concurrency::MainActor func onCluefolkReady()
+  @objc @_Concurrency::MainActor func onCluefolkOpened()
+  @objc @_Concurrency::MainActor func onCluefolkClosed()
+  @objc @_Concurrency::MainActor func onCluefolkUnreadChanged(_ count: Swift::Int)
+  @objc @_Concurrency::MainActor func onCluefolkIdentityTokenRequired(_ requestId: Swift::String)
+  @objc @_Concurrency::MainActor func onCluefolkConversationCreated(_ conversationId: Swift::String)
+  @objc @_Concurrency::MainActor func onCluefolkConversationStatusChanged(_ conversationId: Swift::String, status: Swift::String)
+  @objc @_Concurrency::MainActor func onCluefolkMessageSent(_ conversationId: Swift::String, messageId: Swift::String)
+  @objc @_Concurrency::MainActor func onCluefolkError(_ code: Swift::String)
+}
+@_inheritsConvenienceInitializers @_Concurrency::MainActor @objc(CLFCluefolk) final public class Cluefolk : ObjectiveC::NSObject {
+  @objc nonisolated public static let sdkVersion: Swift::String
+  @objc @_Concurrency::MainActor public static let shared: Cluefolk::Cluefolk
+  @objc @_Concurrency::MainActor weak final public var eventListener: (any Cluefolk::CluefolkEventListener)? {
+    @objc get
+    @objc set
+  }
+  @objc @_Concurrency::MainActor final public var isReady: Swift::Bool {
+    get
+  }
+  @objc @_Concurrency::MainActor final public func initialize(_ options: Cluefolk::CluefolkOptions) throws
+  @objc @_Concurrency::MainActor final public func setIdentityTokenProvider(_ provider: ((@escaping (Swift::String?, Foundation::NSError?) -> Swift::Void) -> Swift::Void)?)
+  @objc @_Concurrency::MainActor final public func shutdown()
+  @objc @_Concurrency::MainActor final public func completeIdentityToken(_ requestId: Swift::String, token: Swift::String, error: Swift::String)
+  @objc @_Concurrency::MainActor final public func loginWithIdentity(_ jwt: Swift::String, completion: @escaping (Foundation::NSError?) -> Swift::Void)
+  @objc @_Concurrency::MainActor final public func open(from controller: UIKit::UIViewController)
+  @objc @_Concurrency::MainActor final public func openConversation(_ conversationId: Swift::String, from controller: UIKit::UIViewController)
+  @objc @_Concurrency::MainActor final public func close()
+  @objc @_Concurrency::MainActor final public func setLanguage(_ value: Swift::String)
+  @objc @_Concurrency::MainActor final public func setPlayerId(_ playerId: Swift::String?)
+  @objc @_Concurrency::MainActor final public func refreshUnreadCount()
+  @discardableResult
+  @objc @_Concurrency::MainActor final public func handlePush(_ data: [Swift::String : Any]) -> Swift::Bool
+  @discardableResult
+  @objc @_Concurrency::MainActor final public func openFromPush(_ data: [Swift::String : Any], from controller: UIKit::UIViewController) -> Swift::Bool
+  @objc @_Concurrency::MainActor final public func setAppearance(_ appearance: Cluefolk::Appearance?)
+  @objc @_Concurrency::MainActor final public func setConversationContext(_ values: [Swift::String : Any]) throws
+  @objc @_Concurrency::MainActor final public func setAttributes(_ values: [Swift::String : Any]) throws
+  @objc @_Concurrency::MainActor final public func unsetAttributes(_ keys: [Swift::String]) throws
+  @objc @_Concurrency::MainActor final public func getUnreadCount(_ completion: @escaping (Swift::Int, Foundation::NSError?) -> Swift::Void)
+  @objc @_Concurrency::MainActor final public func logout()
+  @_Concurrency::MainActor @objc override dynamic public init()
+  @objc deinit
+}
+extension Cluefolk::AppearanceMode : Swift::Equatable {}
+extension Cluefolk::AppearanceMode : Swift::Hashable {}
+extension Cluefolk::AppearanceMode : Swift::RawRepresentable {}
+extension Cluefolk::AppearanceRotation : Swift::Equatable {}
+extension Cluefolk::AppearanceRotation : Swift::Hashable {}
+extension Cluefolk::AppearanceRotation : Swift::RawRepresentable {}
+extension Cluefolk::AppearanceError : Swift::Equatable {}
+extension Cluefolk::AppearanceError : Swift::Hashable {}
+extension Cluefolk::AppearanceError : Swift::RawRepresentable {}
+extension Cluefolk::Cluefolk : Swift::Sendable {}

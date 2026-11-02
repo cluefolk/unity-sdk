@@ -1,0 +1,21 @@
+{
+  "name": "com.cluefolk.sdk",
+  "displayName": "Cluefolk Player Support",
+  "version": "0.3.0",
+  "unity": "2022.3",
+  "description": "In-game player support for Android and iOS games: players chat with your support team without leaving the game. Uses the native Cluefolk Android and iOS SDKs.",
+  "license": "MIT",
+  "keywords": [
+    "support",
+    "player support",
+    "in-game chat",
+    "customer support"
+  ],
+  "documentationUrl": "https://github.com/cluefolk/unity-sdk#readme",
+  "changelogUrl": "https://github.com/cluefolk/unity-sdk/blob/main/CHANGELOG.md",
+  "licensesUrl": "https://github.com/cluefolk/unity-sdk/blob/main/LICENSE.md",
+  "author": {
+    "name": "Cluefolk",
+    "url": "https://cluefolk.com"
+  }
+}
