@@ -21,7 +21,7 @@ public sealed class CluefolkOptions {
 public static class Cluefolk {
   public const int BridgeProtocolVersion = 2;
   /// <summary>The package version; Android builds use the native SDK of the same version.</summary>
-  public const string Version = "0.3.0";
+  public const string Version = "0.3.1";
   /// <summary>Native events as (type, JSON payload): ready, opened, closed,
   /// unreadChanged, conversationCreated, conversationStatusChanged,
   /// messageSent, error. An error payload is {"code":"..."}.</summary>

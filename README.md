@@ -20,13 +20,13 @@ The package stops the build with a clear message if the Player Settings are belo
 In Unity open **Window → Package Manager**, press **+ → Add package from git URL…** and enter:
 
 ```
-https://github.com/cluefolk/unity-sdk.git#0.3.0
+https://github.com/cluefolk/unity-sdk.git#0.3.1
 ```
 
 Or add it to `Packages/manifest.json`:
 
 ```json
-"com.cluefolk.sdk": "https://github.com/cluefolk/unity-sdk.git#0.3.0"
+"com.cluefolk.sdk": "https://github.com/cluefolk/unity-sdk.git#0.3.1"
 ```
 
 What happens in player builds:
@@ -115,7 +115,7 @@ Cluefolk.HandlePush(data, opened: true); // The player tapped it: opens the conv
 
 ## Using your own Gradle or Xcode setup
 
-- If the Gradle project cannot reach Maven Central, add a mirror to your custom settings template; the package adds `implementation 'com.cluefolk:android-sdk:0.3.0'` to `unityLibrary`.
+- If the Gradle project cannot reach Maven Central, add a mirror to your custom settings template; the package adds `implementation 'com.cluefolk:android-sdk:0.3.1'` to `unityLibrary`.
 - The iOS framework lives in the package's `Native~` folder and is copied into each Xcode build under `Frameworks/com.cluefolk.sdk`.
 
 ## More

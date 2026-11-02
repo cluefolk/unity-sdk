@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.1 — 2026-11-02
+
+- Uses Android SDK 0.3.1 from Maven Central and the iOS SDK 0.3.1 framework, with the updated support screen: replies signed with the operator's first name, compact delivery ticks, no player ID inside a conversation, and the "Talk to the team" button at the bottom of the home screen.
+
 ## 0.3.0 — 2026-11-02
 
 First public release.
