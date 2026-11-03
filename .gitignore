@@ -5,6 +5,7 @@ obj/
 Build/
 # Tools~/verify-csharp.py writes its compiler runs here.
 .validation/
+__pycache__/
 .DS_Store
 # Native~ (the iOS framework) and Tools~ are part of the repository; Unity skips
 # names ending in ~, and some global git ignores drop them too.

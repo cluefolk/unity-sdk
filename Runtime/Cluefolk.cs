@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
 
@@ -21,7 +22,7 @@ public sealed class CluefolkOptions {
 public static class Cluefolk {
   public const int BridgeProtocolVersion = 2;
   /// <summary>The package version; Android builds use the native SDK of the same version.</summary>
-  public const string Version = "0.3.1";
+  public const string Version = "0.3.2";
   /// <summary>Native events as (type, JSON payload): ready, opened, closed,
   /// unreadChanged, conversationCreated, conversationStatusChanged,
   /// messageSent, error. An error payload is {"code":"..."}.</summary>
@@ -29,9 +30,11 @@ public static class Cluefolk {
   private static readonly Dictionary<string, TaskCompletionSource<string>>
       Pending = new Dictionary<string, TaskCompletionSource<string>>();
   private static Func<Task<string>> identityProvider;
+  private static CancellationTokenSource identityCancellation =
+      new CancellationTokenSource();
   private static bool initializationStarted = false;
   public static bool IsReady { get; private set; }
-  private static int generation;
+  private static int identityGeneration;
   private static int unityThread;
 
   public static void Initialize(CluefolkOptions options) {
@@ -67,6 +70,7 @@ public static class Cluefolk {
   /// reports error code IDENTITY_UNAVAILABLE. Passing null removes it.</summary>
   public static void SetIdentityTokenProvider(Func<Task<string>> provider) {
     Check(requireReady: false);
+    CancelIdentityRequest();
     identityProvider = provider;
     // The native SDK asks for a token only while a provider exists, so games
     // without one never report IDENTITY_UNAVAILABLE. null removes it.
@@ -84,7 +88,7 @@ public static class Cluefolk {
       throw new ArgumentException(
           "An identity JWT from game login is required.");
     CancelPending();
-    generation++;
+    CancelIdentityRequest();
     await Request(id => {
 #if UNITY_IOS && !UNITY_EDITOR
       NativeLogin(identityJwt, id);
@@ -160,7 +164,7 @@ public static class Cluefolk {
   }
   public static void Logout() {
     Check();
-    generation++;
+    CancelIdentityRequest();
     CancelPending();
 #if UNITY_IOS && !UNITY_EDITOR
     NativeLogout();
@@ -178,6 +182,11 @@ public static class Cluefolk {
     // Two empty strings mean null; a built Appearance always has overrides ("{}" at least).
     string baseJson = appearance?.BaseJson ?? "";
     string overrides = appearance?.Overrides ?? "";
+    if (appearance != null) {
+      AppearanceValidation.EnsureJsonLength(baseJson, "The appearance JSON");
+      AppearanceValidation.EnsureJsonLength(overrides,
+                                            "The appearance overrides");
+    }
 #if UNITY_IOS && !UNITY_EDITOR
     NativeSetAppearance(baseJson, overrides);
 #elif UNITY_ANDROID && !UNITY_EDITOR
@@ -280,20 +289,28 @@ public static class Cluefolk {
     Event(message.type, message.payload);
   }
   private static async Task ProvideIdentity(string id) {
-    int expected = generation;
+    int expected = identityGeneration;
+    CancellationToken cancellation = identityCancellation.Token;
+    Func<Task<string>> provider = identityProvider;
     string token = "";
     string error = "";
     try {
-      if (identityProvider == null)
-        throw new InvalidOperationException();
-      token = await identityProvider();
+      token = await IdentityProviderRunner.Run(provider, cancellation);
       if (string.IsNullOrWhiteSpace(token))
         throw new InvalidOperationException();
+    } catch (OperationCanceledException) when (
+        cancellation.IsCancellationRequested || identityGeneration != expected) {
+      error = "IDENTITY_PROVIDER_FAILED";
     } catch {
       error = "IDENTITY_PROVIDER_FAILED";
     }
-    if (generation != expected)
-      return;
+    if (identityGeneration != expected || cancellation.IsCancellationRequested) {
+      // Complete stale native bridge requests with no credential. Android uses
+      // completion to evict its request callback; the native account-generation
+      // guard prevents this error from affecting a new session.
+      token = "";
+      error = "IDENTITY_PROVIDER_FAILED";
+    }
 #if UNITY_IOS && !UNITY_EDITOR
     NativeIdentity(id, token, error);
 #elif UNITY_ANDROID && !UNITY_EDITOR
@@ -302,6 +319,13 @@ public static class Cluefolk {
     GC.KeepAlive(token);
     GC.KeepAlive(error);
 #endif
+  }
+  private static void CancelIdentityRequest() {
+    identityGeneration++;
+    var previous = identityCancellation;
+    identityCancellation = new CancellationTokenSource();
+    previous.Cancel();
+    previous.Dispose();
   }
   private static void Check(bool requireReady = true) {
     if (!initializationStarted)
@@ -393,13 +417,20 @@ public static class Cluefolk {
   }
   internal static void Quote(StringBuilder output, string value) {
     output.Append('"');
-    foreach (char c in value) {
+    for (int index = 0; index < value.Length; index++) {
+      char c = value[index];
       switch (c) {
       case '"':
         output.Append("\\\"");
         break;
       case '\\':
         output.Append("\\\\");
+        break;
+      case '\b':
+        output.Append("\\b");
+        break;
+      case '\f':
+        output.Append("\\f");
         break;
       case '\n':
         output.Append("\\n");
@@ -411,7 +442,12 @@ public static class Cluefolk {
         output.Append("\\t");
         break;
       default:
-        if (c < 32)
+        if (c < 32 ||
+            char.IsHighSurrogate(c) &&
+                (index + 1 >= value.Length ||
+                 !char.IsLowSurrogate(value[index + 1])) ||
+            char.IsLowSurrogate(c) &&
+                (index == 0 || !char.IsHighSurrogate(value[index - 1])))
           output.Append("\\u" + ((int)c).ToString("x4"));
         else
           output.Append(c);
@@ -494,6 +530,7 @@ public sealed class AppearanceTopic {
     Label = label ?? throw new ArgumentNullException(nameof(label));
     Category = category ?? throw new ArgumentNullException(nameof(category));
     Icon = icon ?? throw new ArgumentNullException(nameof(icon));
+    AppearanceValidation.Topic(Label, Category, Icon);
   }
 }
 
@@ -531,13 +568,14 @@ public sealed class Appearance {
     /// <summary>json is the text of the file from Settings → Widget →
     /// Download for build; null starts from the default theme.</summary>
     public Builder(string json = null) {
-      if (json != null && json.Length == 0)
-        throw new ArgumentException("The appearance JSON is empty; pass null for the default theme.", nameof(json));
-      baseJson = json ?? "";
+      baseJson = AppearanceValidation.BaseJson(json);
     }
 
     public Builder Title(string title) {
-      this.title = title ?? throw new ArgumentNullException(nameof(title));
+      if (title == null)
+        throw new ArgumentNullException(nameof(title));
+      AppearanceValidation.Title(title);
+      this.title = title;
       return this;
     }
 
@@ -573,32 +611,42 @@ public sealed class Appearance {
     }
 
     public Builder Welcome(string title, string text) {
-      welcome = new[] { title ?? throw new ArgumentNullException(nameof(title)),
-                        text ?? throw new ArgumentNullException(nameof(text)) };
+      if (title == null)
+        throw new ArgumentNullException(nameof(title));
+      if (text == null)
+        throw new ArgumentNullException(nameof(text));
+      AppearanceValidation.BlockTitle(title, "welcome");
+      AppearanceValidation.BlockText(text, "welcome");
+      welcome = new[] { title, text };
       return this;
     }
 
     /// <summary>Up to 12 topics; each opens a new conversation in its category.</summary>
     public Builder Topics(string title, params AppearanceTopic[] items) {
-      if (items == null)
-        throw new ArgumentNullException(nameof(items));
-      foreach (var item in items)
-        if (item == null)
-          throw new ArgumentNullException(nameof(items));
-      topicsTitle = title ?? throw new ArgumentNullException(nameof(title));
+      AppearanceValidation.Topics(title, items);
+      topicsTitle = title;
       topics = (AppearanceTopic[])items.Clone();
       return this;
     }
 
     public Builder Contact(string title, string text) {
-      contact = new[] { title ?? throw new ArgumentNullException(nameof(title)),
-                        text ?? throw new ArgumentNullException(nameof(text)) };
+      if (title == null)
+        throw new ArgumentNullException(nameof(title));
+      if (text == null)
+        throw new ArgumentNullException(nameof(text));
+      AppearanceValidation.BlockTitle(title, "contact");
+      AppearanceValidation.BlockText(text, "contact");
+      contact = new[] { title, text };
       return this;
     }
 
     /// <summary>Records the theme for SetAppearance. The native SDK checks it
     /// there; a failure is reported as error INVALID_APPEARANCE.</summary>
     public Appearance Build() {
+      AppearanceValidation.EnsureSerializedLength(
+          OverridesLength(AppearanceValidation.JsonStringLength));
+      AppearanceValidation.EnsureSerializedLength(
+          OverridesLength(AppearanceValidation.JsonStringUtf8Length));
       var fields = new List<string>();
       if (title != null)
         fields.Add(Field("title", JsonString(title)));
@@ -624,7 +672,10 @@ public sealed class Appearance {
       }
       if (contact != null)
         fields.Add(Field("contact", JsonObject(Field("title", JsonString(contact[0])), Field("text", JsonString(contact[1])))));
-      return new Appearance(baseJson, JsonObject(fields.ToArray()));
+      string overrides = JsonObject(fields.ToArray());
+      AppearanceValidation.EnsureJsonLength(overrides,
+                                            "The appearance overrides");
+      return new Appearance(baseJson, overrides);
     }
 
     private static string JsonString(string value) {
@@ -649,9 +700,90 @@ public sealed class Appearance {
     private static string[] Colors(string accent, string action, string background, string surface, string text) {
       var colors = new[] { accent, action, background, surface, text };
       for (int i = 0; i < colors.Length; i++)
-        if (colors[i] == null)
-          throw new ArgumentNullException(ColorKeys[i]);
+        AppearanceValidation.Color(colors[i], ColorKeys[i]);
       return colors;
+    }
+
+    // Exact size of the overrides JSON generated below, calculated before any
+    // large intermediate strings are allocated.
+    private long OverridesLength(Func<string, int> stringLength) {
+      long length = 2;
+      int count = 0;
+      void Add(long fieldLength) {
+        if (count++ > 0)
+          length++;
+        length += fieldLength;
+      }
+      if (title != null)
+        Add(FieldLength("title", StringLength(title, stringLength), stringLength));
+      if (mode != null)
+        Add(FieldLength("mode", StringLength(mode, stringLength), stringLength));
+      if (rotation != null)
+        Add(FieldLength("rotation", StringLength(rotation, stringLength), stringLength));
+      int colorCount = (lightColors != null ? 1 : 0) +
+                       (darkColors != null ? 1 : 0);
+      if (colorCount > 0) {
+        long colorsLength = 2;
+        int palettes = 0;
+        if (lightColors != null) {
+          colorsLength += FieldLength("light", PaletteLength(lightColors, stringLength), stringLength);
+          palettes++;
+        }
+        if (darkColors != null) {
+          if (palettes > 0)
+            colorsLength++;
+          colorsLength += FieldLength("dark", PaletteLength(darkColors, stringLength), stringLength);
+        }
+        Add(FieldLength("colors", colorsLength, stringLength));
+      }
+      if (welcome != null)
+        Add(FieldLength("welcome", TextBlockLength(welcome, stringLength), stringLength));
+      if (topics != null) {
+        long arrayLength = 2;
+        for (int index = 0; index < topics.Length; index++) {
+          if (index > 0)
+            arrayLength++;
+          long itemLength = 2 + FieldLength("label", StringLength(topics[index].Label, stringLength), stringLength) +
+                            1 + FieldLength("category", StringLength(topics[index].Category, stringLength), stringLength) +
+                            1 + FieldLength("icon", StringLength(topics[index].Icon, stringLength), stringLength);
+          arrayLength += itemLength;
+        }
+        long topicsLength = 2 + FieldLength("title", StringLength(topicsTitle, stringLength), stringLength) +
+                            1 + FieldLength("items", arrayLength, stringLength);
+        Add(FieldLength("topics", topicsLength, stringLength));
+      }
+      if (contact != null)
+        Add(FieldLength("contact", TextBlockLength(contact, stringLength), stringLength));
+      return length;
+    }
+
+    private static long TextBlockLength(string[] block,
+                                        Func<string, int> stringLength) {
+      return 2 + FieldLength("title", StringLength(block[0], stringLength), stringLength) + 1 +
+             FieldLength("text", StringLength(block[1], stringLength), stringLength);
+    }
+
+    private static long PaletteLength(string[] colors,
+                                      Func<string, int> stringLength) {
+      long length = 2;
+      for (int index = 0; index < ColorKeys.Length; index++) {
+        if (index > 0)
+          length++;
+        length += FieldLength(ColorKeys[index],
+                              StringLength(colors[index], stringLength),
+                              stringLength);
+      }
+      return length;
+    }
+
+    private static long FieldLength(string key, long jsonLength,
+                                    Func<string, int> stringLength) {
+      return StringLength(key, stringLength) + 1 + jsonLength;
+    }
+
+    private static int StringLength(string value,
+                                    Func<string, int> stringLength) {
+      return stringLength(value);
     }
   }
 }

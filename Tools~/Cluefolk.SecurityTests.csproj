@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <Deterministic>true</Deterministic>
+    <Optimize>true</Optimize>
+    <Configurations>EDITOR;ANDROID;IOS</Configurations>
+    <DefineConstants>$(DefineConstants);CLUEFOLK_HOSTED_VALIDATION</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'EDITOR'">
+    <DefineConstants>$(DefineConstants);UNITY_EDITOR</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'ANDROID'">
+    <DefineConstants>$(DefineConstants);UNITY_ANDROID</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'IOS'">
+    <DefineConstants>$(DefineConstants);UNITY_IOS</DefineConstants>
+  </PropertyGroup>
+
+  <!-- This is a hosted-runner fallback, not a substitute for compiling with
+       Unity. Recursive wildcards deliberately make every Runtime and Editor
+       C# source part of the gate as the package grows. -->
+  <ItemGroup>
+    <Compile Include="../Runtime/**/*.cs"
+             Link="Runtime/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="../Editor/**/*.cs"
+             Link="Editor/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="SecurityTests.cs" />
+  </ItemGroup>
+
+  <Target Name="ValidateHostedConfiguration" BeforeTargets="CoreCompile">
+    <Error
+      Condition="'$(Configuration)' != 'EDITOR' and '$(Configuration)' != 'ANDROID' and '$(Configuration)' != 'IOS'"
+      Text="Use one hosted validation configuration: EDITOR, ANDROID, or IOS." />
+  </Target>
+</Project>

@@ -39,11 +39,14 @@ sealed class CluefolkAndroidBuild : IPostGenerateGradleAndroidProject {
   public void OnPostGenerateGradleAndroidProject(string path) {
     var gradle = Path.Combine(path, "build.gradle");
     var text = File.ReadAllText(gradle);
-    if (!text.Contains("com.cluefolk:android-sdk")) {
-      var dependencies = new Regex(@"^dependencies\s*\{", RegexOptions.Multiline);
-      if (!dependencies.IsMatch(text))
-        throw new BuildFailedException("Cluefolk could not find the dependencies block in " + gradle);
-      text = dependencies.Replace(text, m => m.Value + "\n    implementation 'com.cluefolk:android-sdk:" + Cluefolk.Version + "'", 1);
+    string updated;
+    try {
+      updated = GradleDependency.EnsureExact(text, Cluefolk.Version);
+    } catch (System.Exception error) {
+      throw new BuildFailedException(error.Message + " File: " + gradle);
+    }
+    if (!string.Equals(updated, text, System.StringComparison.Ordinal)) {
+      text = updated;
       File.WriteAllText(gradle, text);
     }
     // The SDK depends on AndroidX, which Unity 2022.3 does not switch on by itself.
@@ -64,6 +67,12 @@ static class CluefolkIOSBuild {
     if (target != BuildTarget.iOS) return;
     var package = UnityEditor.PackageManager.PackageInfo.FindForAssembly(typeof(CluefolkIOSBuild).Assembly);
     var source = Path.Combine(package.resolvedPath, "Native~", "Cluefolk.xcframework");
+    var manifest = source + ".integrity";
+    try {
+      ArtifactIntegrity.Verify(source, manifest, Cluefolk.Version);
+    } catch (System.Exception error) {
+      throw new BuildFailedException(error.Message);
+    }
     var destination = Path.Combine(project, Framework);
     if (Directory.Exists(destination)) Directory.Delete(destination, true);
     Copy(source, destination);

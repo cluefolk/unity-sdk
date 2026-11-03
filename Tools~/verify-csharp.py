@@ -57,7 +57,7 @@ for raw, unity in selected:
         response = ['-nologo', '-target:library', '-langversion:9.0', '-warnaserror+', '-nostdlib+',
                     '-define:' + platform, '-out:' + str(out / (platform + '.dll'))]
         response += ['-r:' + str(p) for p in refs + player]
-        response += [str(root / 'Runtime/Cluefolk.cs')]
+        response += [str(path) for path in sorted((root / 'Runtime').glob('*.cs'))]
         path = out / (platform + '.rsp')
         path.write_text('\n'.join('"' + line + '"' for line in response))
         subprocess.run([str(dotnet), 'exec', str(csc), '-noconfig', '@' + str(path)], check=True)

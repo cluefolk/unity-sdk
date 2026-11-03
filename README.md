@@ -20,13 +20,13 @@ The package stops the build with a clear message if the Player Settings are belo
 In Unity open **Window → Package Manager**, press **+ → Add package from git URL…** and enter:
 
 ```
-https://github.com/cluefolk/unity-sdk.git#0.3.1
+https://github.com/cluefolk/unity-sdk.git#0.3.2
 ```
 
 Or add it to `Packages/manifest.json`:
 
 ```json
-"com.cluefolk.sdk": "https://github.com/cluefolk/unity-sdk.git#0.3.1"
+"com.cluefolk.sdk": "https://github.com/cluefolk/unity-sdk.git#0.3.2"
 ```
 
 What happens in player builds:
@@ -96,7 +96,7 @@ The support screen's look ships inside your game build. In Cluefolk open **Setti
 Cluefolk.SetAppearance(new Appearance.Builder(themeFile.text).Build());
 ```
 
-`new Appearance.Builder()` without a file starts from the default look; change it in code with `Title`, `Mode`, `Rotation`, `LightColors`/`DarkColors`, `Welcome`, `Topics` and `Contact`. `SetAppearance(null)` returns to the default look. The screen turns like the game unless the theme sets `Rotation` to `Free`.
+`new Appearance.Builder()` without a file starts from the default look; change it in code with `Title`, `Mode`, `Rotation`, `LightColors`/`DarkColors`, `Welcome`, `Topics` and `Contact`. The builder rejects oversized text, more than 12 topics, invalid category keys and unsafe PNG/JPEG data-URL icons before native interop. `SetAppearance(null)` returns to the default look. The screen turns like the game unless the theme sets `Rotation` to `Free`.
 
 ## Push notifications
 
@@ -115,7 +115,7 @@ Cluefolk.HandlePush(data, opened: true); // The player tapped it: opens the conv
 
 ## Using your own Gradle or Xcode setup
 
-- If the Gradle project cannot reach Maven Central, add a mirror to your custom settings template; the package adds `implementation 'com.cluefolk:android-sdk:0.3.1'` to `unityLibrary`.
+- If the Gradle project cannot reach Maven Central, add a mirror to your custom settings template; the package adds `implementation 'com.cluefolk:android-sdk:0.3.2'` to `unityLibrary`.
 - The iOS framework lives in the package's `Native~` folder and is copied into each Xcode build under `Frameworks/com.cluefolk.sdk`.
 
 ## More
